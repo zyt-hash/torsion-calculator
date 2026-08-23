@@ -1,5 +1,7 @@
 import streamlit as st
 import numpy as np
+import matplotlib.pyplot as plt
+import matplotlib.patches as patches
 
 st.set_page_config(page_title="弯剪扭构件配筋设计（例5-1）", layout="centered")
 st.title("📐 弯剪扭构件配筋设计计算器")
@@ -125,29 +127,80 @@ if submitted:
         st.write(f"**β = {beta:.2f}**")
     
     st.markdown("---")
-    st.subheader("📋 最终配筋方案")
+    st.write(f"**✅ 最终配筋方案**")
+    st.write(f"- **箍筋**：双肢 Φ8 @ {s_selected} mm (Asv = {Asv_provided} mm²)")
+    st.write(f"- **底层纵筋**：受弯 {As_flex:.0f} + 抗扭 {Astl_per_layer:.0f} = {As_bottom_total:.0f} mm² → 选 3Φ20 (942 mm²)")
+    st.write(f"- **上层纵筋**：抗扭 {Astl_per_layer:.0f} mm² → 选 2Φ12 (226 mm²)")
+    st.write(f"- **中间层纵筋**：2Φ12 × 2层")
     
-    st.write("| 部位 | 配筋 | 说明 |")
-    st.write("|------|------|------|")
-    st.write(f"| **箍筋** | 双肢 Φ8 @ {s_selected} mm | Asv = {Asv_provided} mm² |")
-    st.write(f"| **底层纵筋** | 3Φ20 (942 mm²) | 受弯 {As_flex:.0f} + 抗扭 {Astl_per_layer:.0f} = {As_bottom_total:.0f} mm² |")
-    st.write(f"| **上层纵筋** | 2Φ12 (226 mm²) | 抗扭 {Astl_per_layer:.0f} mm² |")
-    st.write(f"| **中间层纵筋** | 2Φ12 × 2层 | 抗扭 {Astl_per_layer:.0f} mm²/层 |")
+    # ============================================================
+    # ===== 配筋图（去掉"5-1"） =====
+    # ============================================================
+    st.subheader("📐 截面配筋布置图")
     
-    # 文字示意图
-    st.subheader("📐 截面配筋示意")
-    st.text("┌────────────────────────────────┐")
-    st.text("│         ↑ h = " + str(h) + " mm            │")
-    st.text("│    ┌──────────────────┐        │")
-    st.text("│    │  2Φ12 (上层)      │        │")
-    st.text("│    │                    │        │")
-    st.text("│    │  2Φ12 × 2层      │        │")
-    st.text("│    │                    │        │")
-    st.text("│    │  3Φ20 (底层)      │        │")
-    st.text("│    └──────────────────┘        │")
-    st.text("│         ← b = " + str(b) + " mm →          │")
-    st.text("└────────────────────────────────┘")
-    st.text("保护层 c = " + str(c) + " mm")
-    st.text("箍筋：双肢 Φ8 @ " + str(s_selected) + " mm")
+    fig, ax = plt.subplots(1, 1, figsize=(7, 9))
+    
+    scale = 0.7
+    b_draw = b * scale
+    h_draw = h * scale
+    c_draw = c * scale
+    ox, oy = 60, 60
+    
+    # 混凝土截面
+    rect = patches.Rectangle((ox, oy), b_draw, h_draw, 
+                              linewidth=2, edgecolor='black', facecolor='#f8f8f8')
+    ax.add_patch(rect)
+    
+    # 底层：3Φ20
+    y_bottom = oy + c_draw + 8
+    x_bottom = [ox + c_draw + 15, ox + b_draw/2, ox + b_draw - c_draw - 15]
+    for x in x_bottom:
+        circle = patches.Circle((x, y_bottom), 10, facecolor='black', edgecolor='black')
+        ax.add_patch(circle)
+    ax.text(ox + b_draw/2, y_bottom - 18, '3Φ20', ha='center', va='top', fontsize=9, fontweight='bold')
+    
+    # 中间两层：2Φ12
+    y_mid1 = oy + h_draw * 0.33
+    y_mid2 = oy + h_draw * 0.67
+    x_mid = [ox + c_draw + 15, ox + b_draw - c_draw - 15]
+    for y in [y_mid1, y_mid2]:
+        for x in x_mid:
+            circle = patches.Circle((x, y), 6, facecolor='black', edgecolor='black')
+            ax.add_patch(circle)
+    ax.text(ox + b_draw/2, (y_mid1 + y_mid2)/2, '2Φ12 × 2层', ha='center', va='center', fontsize=9)
+    
+    # 上层：2Φ12
+    y_top = oy + h_draw - c_draw - 8
+    for x in x_mid:
+        circle = patches.Circle((x, y_top), 6, facecolor='black', edgecolor='black')
+        ax.add_patch(circle)
+    ax.text(ox + b_draw/2, y_top + 18, '2Φ12', ha='center', va='bottom', fontsize=9)
+    
+    # 箍筋（简化示意）
+    for y in np.linspace(oy + c_draw, oy + h_draw - c_draw, 6):
+        ax.plot([ox + c_draw, ox + c_draw], [y-4, y+4], 'b-', linewidth=1.5)
+        ax.plot([ox + b_draw - c_draw, ox + b_draw - c_draw], [y-4, y+4], 'b-', linewidth=1.5)
+    ax.plot([ox + c_draw, ox + b_draw - c_draw], [oy + c_draw, oy + c_draw], 'b-', linewidth=1.5)
+    ax.plot([ox + c_draw, ox + b_draw - c_draw], [oy + h_draw - c_draw, oy + h_draw - c_draw], 'b-', linewidth=1.5)
+    
+    # 宽度标注
+    ax.annotate('', xy=(ox, oy - 20), xytext=(ox + b_draw, oy - 20),
+                arrowprops=dict(arrowstyle='<->', edgecolor='black', lw=1))
+    ax.text(ox + b_draw/2, oy - 32, f'{b}mm', ha='center', va='top', fontsize=10)
+    
+    # 高度标注
+    ax.annotate('', xy=(ox - 20, oy), xytext=(ox - 20, oy + h_draw),
+                arrowprops=dict(arrowstyle='<->', edgecolor='black', lw=1))
+    ax.text(ox - 32, oy + h_draw/2, f'{h}mm', ha='center', va='center', rotation=90, fontsize=10)
+    
+    ax.set_xlim(ox - 40, ox + b_draw + 40)
+    ax.set_ylim(oy - 40, oy + h_draw + 40)
+    ax.set_aspect('equal')
+    ax.axis('off')
+    
+    # ✅ 去掉"5-1"：不设置图标题，只保留空
+    # 原来有 ax.set_title('例5-1 截面配筋布置图', fontsize=12) 现在删掉了
+    
+    st.pyplot(fig)
     
     st.caption("💡 底层为受弯+抗扭叠加，中间层和上层为纯抗扭纵筋")
