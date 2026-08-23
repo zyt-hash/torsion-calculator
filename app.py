@@ -127,15 +127,27 @@ if submitted:
     st.markdown("---")
     st.subheader("📋 最终配筋方案")
     
-    st.write(f"""
-    | 部位 | 配筋 | 说明 |
-    |------|------|------|
-    | **箍筋** | 双肢 Φ8 @ {s_selected} mm | Asv = {Asv_provided} mm² |
-    | **底层纵筋** | 3Φ20 (942 mm²) | 受弯 {As_flex:.0f} + 抗扭 {Astl_per_layer:.0f} = {As_bottom_total:.0f} mm² |
-    | **上层纵筋** | 2Φ12 (226 mm²) | 抗扭 {Astl_per_layer:.0f} mm² |
-    | **中间层纵筋** | 2Φ12 × 2层 | 抗扭 {Astl_per_layer:.0f} mm²/层 |
-    """)
+    st.write("| 部位 | 配筋 | 说明 |")
+    st.write("|------|------|------|")
+    st.write(f"| **箍筋** | 双肢 Φ8 @ {s_selected} mm | Asv = {Asv_provided} mm² |")
+    st.write(f"| **底层纵筋** | 3Φ20 (942 mm²) | 受弯 {As_flex:.0f} + 抗扭 {Astl_per_layer:.0f} = {As_bottom_total:.0f} mm² |")
+    st.write(f"| **上层纵筋** | 2Φ12 (226 mm²) | 抗扭 {Astl_per_layer:.0f} mm² |")
+    st.write(f"| **中间层纵筋** | 2Φ12 × 2层 | 抗扭 {Astl_per_layer:.0f} mm²/层 |")
     
-    # 用文字描述配筋图
-    st.subheader("📐 截面配筋示意（文字描述）")
-    st.markdown(f"""
+    # 文字示意图
+    st.subheader("📐 截面配筋示意")
+    st.text("┌────────────────────────────────┐")
+    st.text("│         ↑ h = " + str(h) + " mm            │")
+    st.text("│    ┌──────────────────┐        │")
+    st.text("│    │  2Φ12 (上层)      │        │")
+    st.text("│    │                    │        │")
+    st.text("│    │  2Φ12 × 2层      │        │")
+    st.text("│    │                    │        │")
+    st.text("│    │  3Φ20 (底层)      │        │")
+    st.text("│    └──────────────────┘        │")
+    st.text("│         ← b = " + str(b) + " mm →          │")
+    st.text("└────────────────────────────────┘")
+    st.text("保护层 c = " + str(c) + " mm")
+    st.text("箍筋：双肢 Φ8 @ " + str(s_selected) + " mm")
+    
+    st.caption("💡 底层为受弯+抗扭叠加，中间层和上层为纯抗扭纵筋")
