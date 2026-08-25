@@ -1,7 +1,7 @@
 import streamlit as st
 import numpy as np
-import matplotlib.pyplot as plt
-import matplotlib.patches as patches
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 
 st.set_page_config(page_title="弯剪扭构件配筋设计（例5-1）", layout="centered")
 st.title("📐 弯剪扭构件配筋设计计算器")
@@ -102,7 +102,7 @@ if submitted:
         st.write(f"Astl = {Astl:.0f} mm²")
     
     st.markdown("---")
-    st.subheader("最终配筋方案")
+    st.subheader("📋 最终配筋方案")
     st.write(f"""
     | 部位 | 配筋 |
     |:---|:---|
@@ -112,62 +112,209 @@ if submitted:
     | **中间层** | 2Φ12 × 2层 |
     """)
     
-    # 验算
     if rho_sv_provided >= rho_sv_min:
         st.success(f"✅ 配箍率验算通过：{rho_sv_provided*100:.2f}% ≥ {rho_sv_min*100:.2f}%")
     else:
         st.error(f"❌ 配箍率不足：{rho_sv_provided*100:.2f}% < {rho_sv_min*100:.2f}%")
     
-    # ===== 配筋图 =====
+    # ============================================================
+    # ===== 用 Plotly 绘制配筋图（云端完美运行） =====
+    # ============================================================
     st.subheader("📐 截面配筋布置图")
-    fig, ax = plt.subplots(1, 1, figsize=(6, 8))
     
-    scale = 0.7
-    b_draw, h_draw = b * scale, h * scale
+    # 创建图形
+    fig = go.Figure()
+    
+    # 计算绘图坐标（居中绘制）
+    scale = 0.8
+    b_draw = b * scale
+    h_draw = h * scale
     c_draw = c * scale
-    ox, oy = 50, 50
     
-    rect = patches.Rectangle((ox, oy), b_draw, h_draw, linewidth=2, edgecolor='black', facecolor='#f5f5f5')
-    ax.add_patch(rect)
+    # 截面中心
+    cx = 0
+    cy = 0
+    half_b = b_draw / 2
+    half_h = h_draw / 2
     
-    # 底层
-    y_bottom = oy + c_draw + 10
-    x_bottom = [ox + c_draw + 15, ox + b_draw/2, ox + b_draw - c_draw - 15]
+    # 1. 混凝土截面（矩形边框）
+    fig.add_shape(
+        type="rect",
+        x0=-half_b, y0=-half_h,
+        x1=half_b, y1=half_h,
+        line=dict(color="black", width=3),
+        fillcolor="lightgray",
+        opacity=0.3
+    )
+    
+    # 2. 核心区（虚线框）
+    core_half_b = (b - 2 * c) * scale / 2
+    core_half_h = (h - 2 * c) * scale / 2
+    fig.add_shape(
+        type="rect",
+        x0=-core_half_b, y0=-core_half_h,
+        x1=core_half_b, y1=core_half_h,
+        line=dict(color="blue", width=1.5, dash="dash"),
+        fillcolor="none"
+    )
+    
+    # 3. 纵筋位置
+    # 底层 3Φ20 (y = -half_h + c_draw + 10*scale)
+    y_bottom = -half_h + c_draw + 10 * scale
+    x_bottom = [-half_b + c_draw + 15*scale, 0, half_b - c_draw - 15*scale]
     for x in x_bottom:
-        ax.add_patch(patches.Circle((x, y_bottom), 10, color='black'))
-    ax.text(ox + b_draw/2, y_bottom - 18, '3Φ20', ha='center', va='top', fontsize=9, fontweight='bold')
+        fig.add_shape(
+            type="circle",
+            x0=x - 10*scale, y0=y_bottom - 10*scale,
+            x1=x + 10*scale, y1=y_bottom + 10*scale,
+            fillcolor="black", line_color="black"
+        )
+    # 标注
+    fig.add_annotation(
+        x=0, y=y_bottom - 20*scale,
+        text="3Φ20", showarrow=False,
+        font=dict(size=12, color="black", family="Arial Black")
+    )
     
-    # 中间层
-    y_mid = [oy + h_draw * 0.35, oy + h_draw * 0.65]
-    x_mid = [ox + c_draw + 15, ox + b_draw - c_draw - 15]
+    # 中间两层 2Φ12
+    y_mid = [-half_h + h_draw * 0.35, -half_h + h_draw * 0.65]
+    x_mid = [-half_b + c_draw + 15*scale, half_b - c_draw - 15*scale]
     for y in y_mid:
         for x in x_mid:
-            ax.add_patch(patches.Circle((x, y), 6, color='black'))
-    ax.text(ox + b_draw/2, (y_mid[0] + y_mid[1])/2, '2Φ12 × 2层', ha='center', va='center', fontsize=9)
+            fig.add_shape(
+                type="circle",
+                x0=x - 6*scale, y0=y - 6*scale,
+                x1=x + 6*scale, y1=y + 6*scale,
+                fillcolor="black", line_color="black"
+            )
+    fig.add_annotation(
+        x=0, y=(y_mid[0] + y_mid[1])/2,
+        text="2Φ12 × 2层", showarrow=False,
+        font=dict(size=11, color="black")
+    )
     
-    # 上层
-    y_top = oy + h_draw - c_draw - 10
+    # 上层 2Φ12
+    y_top = half_h - c_draw - 10 * scale
     for x in x_mid:
-        ax.add_patch(patches.Circle((x, y_top), 6, color='black'))
-    ax.text(ox + b_draw/2, y_top + 18, '2Φ12', ha='center', va='bottom', fontsize=9)
+        fig.add_shape(
+            type="circle",
+            x0=x - 6*scale, y0=y_top - 6*scale,
+            x1=x + 6*scale, y1=y_top + 6*scale,
+            fillcolor="black", line_color="black"
+        )
+    fig.add_annotation(
+        x=0, y=y_top + 20*scale,
+        text="2Φ12", showarrow=False,
+        font=dict(size=11, color="black")
+    )
     
-    # 箍筋
-    for y in np.linspace(oy + c_draw, oy + h_draw - c_draw, 8):
-        ax.plot([ox + c_draw, ox + c_draw], [y-5, y+5], 'b-', lw=1.5)
-        ax.plot([ox + b_draw - c_draw, ox + b_draw - c_draw], [y-5, y+5], 'b-', lw=1.5)
-    ax.plot([ox + c_draw, ox + b_draw - c_draw], [oy + c_draw, oy + c_draw], 'b-', lw=1.5)
-    ax.plot([ox + c_draw, ox + b_draw - c_draw], [oy + h_draw - c_draw, oy + h_draw - c_draw], 'b-', lw=1.5)
+    # 4. 箍筋示意（左右竖线 + 上下横线）
+    # 竖线
+    for y in np.linspace(-half_h + c_draw, half_h - c_draw, 8):
+        # 左侧竖线
+        fig.add_shape(
+            type="line",
+            x0=-core_half_b, y0=y - 4*scale,
+            x1=-core_half_b, y1=y + 4*scale,
+            line=dict(color="blue", width=2)
+        )
+        # 右侧竖线
+        fig.add_shape(
+            type="line",
+            x0=core_half_b, y0=y - 4*scale,
+            x1=core_half_b, y1=y + 4*scale,
+            line=dict(color="blue", width=2)
+        )
+    # 上下横线
+    fig.add_shape(
+        type="line",
+        x0=-core_half_b, y0=-core_half_h,
+        x1=core_half_b, y1=-core_half_h,
+        line=dict(color="blue", width=2)
+    )
+    fig.add_shape(
+        type="line",
+        x0=-core_half_b, y0=core_half_h,
+        x1=core_half_b, y1=core_half_h,
+        line=dict(color="blue", width=2)
+    )
     
-    # 尺寸标注
-    ax.annotate('', xy=(ox, oy-15), xytext=(ox+b_draw, oy-15), arrowprops=dict(arrowstyle='<->', color='black'))
-    ax.text(ox+b_draw/2, oy-25, f'{b}mm', ha='center', va='top')
-    ax.annotate('', xy=(ox-15, oy), xytext=(ox-15, oy+h_draw), arrowprops=dict(arrowstyle='<->', color='black'))
-    ax.text(ox-25, oy+h_draw/2, f'{h}mm', ha='center', va='center', rotation=90)
+    # 5. 尺寸标注
+    # 宽度标注
+    fig.add_annotation(
+        x=0, y=-half_h - 30*scale,
+        text=f"{b} mm", showarrow=False,
+        font=dict(size=13, color="black")
+    )
+    fig.add_shape(
+        type="line",
+        x0=-half_b, y0=-half_h - 15*scale,
+        x1=half_b, y1=-half_h - 15*scale,
+        line=dict(color="black", width=1.5)
+    )
+    fig.add_shape(
+        type="line",
+        x0=-half_b, y0=-half_h - 10*scale,
+        x1=-half_b, y1=-half_h - 20*scale,
+        line=dict(color="black", width=1.5)
+    )
+    fig.add_shape(
+        type="line",
+        x0=half_b, y0=-half_h - 10*scale,
+        x1=half_b, y1=-half_h - 20*scale,
+        line=dict(color="black", width=1.5)
+    )
     
-    ax.set_xlim(ox-30, ox+b_draw+30)
-    ax.set_ylim(oy-30, oy+h_draw+30)
-    ax.set_aspect('equal')
-    ax.axis('off')
+    # 高度标注
+    fig.add_annotation(
+        x=-half_b - 40*scale, y=0,
+        text=f"{h} mm", showarrow=False,
+        font=dict(size=13, color="black"), textangle=-90
+    )
+    fig.add_shape(
+        type="line",
+        x0=-half_b - 25*scale, y0=-half_h,
+        x1=-half_b - 25*scale, y1=half_h,
+        line=dict(color="black", width=1.5)
+    )
+    fig.add_shape(
+        type="line",
+        x0=-half_b - 20*scale, y0=-half_h,
+        x1=-half_b - 30*scale, y1=-half_h,
+        line=dict(color="black", width=1.5)
+    )
+    fig.add_shape(
+        type="line",
+        x0=-half_b - 20*scale, y0=half_h,
+        x1=-half_b - 30*scale, y1=half_h,
+        line=dict(color="black", width=1.5)
+    )
     
-    st.pyplot(fig)
+    # 保护层标注
+    fig.add_annotation(
+        x=-half_b + c_draw/2, y=-half_h - 12*scale,
+        text=f"c={c}", showarrow=False,
+        font=dict(size=10, color="gray")
+    )
+    
+    # 设置图形布局
+    margin = max(b_draw, h_draw) * 0.25
+    fig.update_layout(
+        width=550,
+        height=700,
+        showlegend=False,
+        xaxis=dict(
+            range=[-half_b - margin, half_b + margin],
+            showgrid=False, zeroline=False, visible=False
+        ),
+        yaxis=dict(
+            range=[-half_h - margin, half_h + margin],
+            showgrid=False, zeroline=False, visible=False,
+            scaleanchor="x", scaleratio=1
+        ),
+        plot_bgcolor="white",
+        margin=dict(l=40, r=40, t=20, b=40)
+    )
+    
+    st.plotly_chart(fig, use_container_width=True)
     st.caption("💡 计算结果与《结构设计原理》叶见曙 第5版 例5-1 一致")
